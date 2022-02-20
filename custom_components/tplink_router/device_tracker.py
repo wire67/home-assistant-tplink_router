@@ -52,7 +52,8 @@ def get_scanner(hass, config):
                 C7TplinkDeviceScanner,
                 C9TplinkDeviceScanner,
                 OldC9TplinkDeviceScanner,
-                OriginalTplinkDeviceScanner]:
+                OriginalTplinkDeviceScanner,
+                R470GPDeviceScanner]:
         scanner = cls(config[DOMAIN])
         if scanner.success_init:
             return scanner
@@ -671,3 +672,75 @@ class VR600TplinkDeviceScanner(TplinkDeviceScanner):
             self.token = ''
             return False
         return True
+
+class R470GPDeviceScanner(TplinkDeviceScanner):
+    """This class queries the TL-R470GP-AC router"""
+    def __init__(self, config):
+        """Initialize the scanner."""
+        self.stok : str = ''
+        self.session = requests.session()
+        super().__init__(config)
+
+    def get_device_name(self, device):
+        """Get firmware doesn't save the name of the wireless device."""
+        return self.last_results.get(device)
+
+    # pylint: disable=no-self-use:
+    def _update_info(self) -> bool:
+        """Ensure the information from the TP-Link router is up to date.
+        Return boolean if scanning successful.
+        """
+        if not self.stok and not self._get_auth_tokens():
+            _LOGGER.error("get stok failed")
+            return False
+        mac_results = self._get_mac_results()
+        if not mac_results:
+            _LOGGER.error("get mac results error")
+            return False
+        self.last_results = mac_results
+        return True
+
+    def _get_auth_tokens(self) -> bool:
+        """Retrieve auth tokens from the router."""
+        _LOGGER.info("Retrieving auth tokens...")
+        url = f"http://{self.host}"
+        header = {
+            "Referer": f"http://{self.host}/login.htm",
+            "Content-Type": "application/json",
+        }
+        data = {"method":"do","login":{
+            "username": self.username,
+            "password": self.password,
+        }}
+        ret = self.session.post(url, json=data, headers=header)
+        # pylint: disable=no-member:
+        if ret.status_code != requests.codes.OK:
+            _LOGGER.error("login failed %s", ret.text)
+            return False
+        self.stok = ret.json().get("stok", "")
+        return True
+
+    def _get_mac_results(self) -> dict:
+        _LOGGER.info("R470GP Loading wireless clients...")
+        mac_results = {}
+        url = f"http://{self.host}/stok={self.stok}/ds"
+        header = {"Content-Type": "application/json"}
+        data = {"method":"get","host_management":{"table":"host_info"}}
+        ret = self.session.post(url, json=data, headers=header)
+        # pylint: disable=no-member:
+        if ret.status_code != requests.codes.OK:
+            _LOGGER.error("get macs faield %s", ret.text)
+            return mac_results
+
+        results = ret.json()
+        host_infos = results.get("host_management", {}).get("host_info", [])
+        for host_info_dict in host_infos:
+            for _, host_info in host_info_dict.items():
+                _LOGGER.debug(host_info)
+                state = host_info.get("state", "")
+                if state != "online":
+                    continue
+                mac = host_info.get("mac", "")
+                hostname = host_info.get("hostname", "")
+                mac_results[mac] = hostname
+        return mac_results
