@@ -101,6 +101,9 @@ class TplinkDeviceScanner(DeviceScanner):
         ).decode('ascii')
         return 'Authorization=Basic {}'.format(b64_encoded_username_password)
 
+    def _update_info(self):
+        raise NotImplementedError()
+
 
 class OriginalTplinkDeviceScanner(TplinkDeviceScanner):
     """This class queries a wireless router running TP-Link firmware.
@@ -118,7 +121,7 @@ class OriginalTplinkDeviceScanner(TplinkDeviceScanner):
         page = requests.get(
             url, auth=(self.username, self.password),
             headers={REFERER: referer}, timeout=4)
-        
+
         # Check 5Ghz band (if available)
         url = 'http://{}/userRpm/WlanStationRpm_5g.htm'.format(self.host)
         page2 = requests.get(
@@ -544,7 +547,7 @@ class VR600TplinkDeviceScanner(TplinkDeviceScanner):
         response = requests.post(url, headers=headers)
 
         if not response.status_code == 200:
-            _LOGGER.error("Error %s from router", page.response)
+            _LOGGER.error("Error %s from router", response.text)
             return False
 
         self.jsessionId = dict(response.cookies)['JSESSIONID']
@@ -567,7 +570,7 @@ class VR600TplinkDeviceScanner(TplinkDeviceScanner):
         response = requests.get(url, headers=headers, cookies=cookies)
 
         if not response.status_code == 200:
-            _LOGGER.error("Error %s from router", page.response)
+            _LOGGER.error("Error %s from router", response.text)
             return False
 
         split = response.text.index('var token=') + len('var token=\"') 
@@ -635,7 +638,7 @@ class VR600TplinkDeviceScanner(TplinkDeviceScanner):
                 return False
 
             mac_results.extend(self.parse_macs_colons.findall(page.text))
-    
+
         self.last_results = mac_results
         return True
 
