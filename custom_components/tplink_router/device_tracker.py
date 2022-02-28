@@ -25,6 +25,7 @@ from aiohttp.hdrs import (
     ACCEPT_LANGUAGE
 )
 import requests
+from aiohttp import ClientConnectorError
 import voluptuous as vol
 
 from homeassistant.components.device_tracker import (
@@ -32,6 +33,7 @@ from homeassistant.components.device_tracker import (
 from homeassistant.const import (
     CONF_HOST, CONF_PASSWORD, CONF_USERNAME, HTTP_HEADER_X_REQUESTED_WITH)
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import aiohttp_client
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +48,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 def get_scanner(hass, config):
     """Validate the configuration and return a TP-Link scanner."""
+    for cls in [R470GPDeviceScanner]:
+        scanner = cls(hass, config[DOMAIN])
+        if scanner.success_init:
+            return scanner
     for cls in [VR600TplinkDeviceScanner,
                 EAP225TplinkDeviceScanner,
                 N600TplinkDeviceScanner,
@@ -53,7 +59,7 @@ def get_scanner(hass, config):
                 C9TplinkDeviceScanner,
                 OldC9TplinkDeviceScanner,
                 OriginalTplinkDeviceScanner,
-                R470GPDeviceScanner]:
+                ]:
         scanner = cls(config[DOMAIN])
         if scanner.success_init:
             return scanner
@@ -83,13 +89,14 @@ class TplinkDeviceScanner(DeviceScanner):
         self.last_results = {}
         self.success_init = self._update_info()
 
-    def scan_devices(self):
+    async def async_scan_devices(self) -> list[str]:
         """Scan for new devices and return a list with found device IDs."""
-        self._update_info()
-        return self.last_results
+        await self._update_info()
+        _LOGGER.debug(self.last_results)
+        return list(self.last_results.values())
 
     # pylint: disable=no-self-use
-    def get_device_name(self, device):
+    def get_device_name(self, device) -> str | None:
         """Firmware doesn't save the name of the wireless device.
         Home Assistant will default to MAC address."""
         return None
@@ -102,7 +109,7 @@ class TplinkDeviceScanner(DeviceScanner):
         ).decode('ascii')
         return 'Authorization=Basic {}'.format(b64_encoded_username_password)
 
-    def _update_info(self):
+    async def _update_info(self):
         raise NotImplementedError()
 
 
@@ -675,10 +682,11 @@ class VR600TplinkDeviceScanner(TplinkDeviceScanner):
 
 class R470GPDeviceScanner(TplinkDeviceScanner):
     """This class queries the TL-R470GP-AC router"""
-    def __init__(self, config):
+    def __init__(self, hass, config):
         """Initialize the scanner."""
         self.stok : str = ''
-        self.session = requests.session()
+        self.session = aiohttp_client.async_create_clientsession(hass,
+                auto_cleanup=False)
         super().__init__(config)
 
     def get_device_name(self, device):
@@ -686,53 +694,66 @@ class R470GPDeviceScanner(TplinkDeviceScanner):
         return self.last_results.get(device)
 
     # pylint: disable=no-self-use:
-    def _update_info(self) -> bool:
+    async def _update_info(self) -> bool:
         """Ensure the information from the TP-Link router is up to date.
         Return boolean if scanning successful.
         """
-        if not self.stok and not self._get_auth_tokens():
+        if not self.stok and not await self._get_auth_tokens():
             _LOGGER.error("get stok failed")
             return False
-        mac_results = self._get_mac_results()
-        if not mac_results:
+        if mac_results := await self._get_mac_results():
+            self.last_results = mac_results
+        else:
             _LOGGER.error("get mac results error")
+            self.stok = ""
             return False
-        self.last_results = mac_results
         return True
 
-    def _get_auth_tokens(self) -> bool:
+    async def _get_auth_tokens(self) -> bool:
         """Retrieve auth tokens from the router."""
         _LOGGER.info("Retrieving auth tokens...")
         url = f"http://{self.host}"
         header = {
             "Referer": f"http://{self.host}/login.htm",
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:53.0) Gecko/20100101 Firefox/53.0",
+            "Host": self.host,
         }
         data = {"method":"do","login":{
             "username": self.username,
             "password": self.password,
         }}
-        ret = self.session.post(url, json=data, headers=header)
-        # pylint: disable=no-member:
-        if ret.status_code != requests.codes.OK:
-            _LOGGER.error("login failed %s", ret.text)
+        try:
+            ret = await self.session.post(url, json=data, headers=header)
+            # pylint: disable=no-member:
+            if not ret.ok:
+                _LOGGER.error("login failed %s", ret.text)
+                return False
+            if retjson := await ret.json():
+                self.stok = retjson.get("stok", "")
+        except ClientConnectorError as err:
+            _LOGGER.error(err)
             return False
-        self.stok = ret.json().get("stok", "")
         return True
 
-    def _get_mac_results(self) -> dict:
+    async def _get_mac_results(self) -> dict:
         _LOGGER.info("R470GP Loading wireless clients...")
         mac_results = {}
         url = f"http://{self.host}/stok={self.stok}/ds"
         header = {"Content-Type": "application/json"}
         data = {"method":"get","host_management":{"table":"host_info"}}
-        ret = self.session.post(url, json=data, headers=header)
-        # pylint: disable=no-member:
-        if ret.status_code != requests.codes.OK:
-            _LOGGER.error("get macs faield %s", ret.text)
+        try:
+            ret = await self.session.post(url, json=data, headers=header)
+            if not ret.ok:
+                _LOGGER.error("get macs faield %s", ret.text)
+                return mac_results
+        except ClientConnectorError as err:
+            _LOGGER.error(err)
             return mac_results
 
-        results = ret.json()
+        results = await ret.json()
+        if not results:
+            return mac_results
         host_infos = results.get("host_management", {}).get("host_info", [])
         for host_info_dict in host_infos:
             for _, host_info in host_info_dict.items():
