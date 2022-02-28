@@ -715,43 +715,23 @@ class R470GPDeviceScanner(TplinkDeviceScanner):
         url = f"http://{self.host}"
         header = {
             "Referer": f"http://{self.host}/login.htm",
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:53.0) Gecko/20100101 Firefox/53.0",
-            "Host": self.host,
         }
         data = {"method":"do","login":{
             "username": self.username,
             "password": self.password,
         }}
-        try:
-            ret = await self.session.post(url, json=data, headers=header)
-            # pylint: disable=no-member:
-            if not ret.ok:
-                _LOGGER.error("login failed %s", ret.text)
-                return False
-            if retjson := await ret.json():
-                self.stok = retjson.get("stok", "")
-        except ClientConnectorError as err:
-            _LOGGER.error(err)
-            return False
-        return True
+        results = await self._request(url, data, header)
+        if results:
+            self.stok = results.get("stok", "")
+            return True
+        return False
 
     async def _get_mac_results(self) -> dict:
         _LOGGER.info("R470GP Loading wireless clients...")
         mac_results = {}
         url = f"http://{self.host}/stok={self.stok}/ds"
-        header = {"Content-Type": "application/json"}
         data = {"method":"get","host_management":{"table":"host_info"}}
-        try:
-            ret = await self.session.post(url, json=data, headers=header)
-            if not ret.ok:
-                _LOGGER.error("get macs faield %s", ret.text)
-                return mac_results
-        except ClientConnectorError as err:
-            _LOGGER.error(err)
-            return mac_results
-
-        results = await ret.json()
+        results = await self._request(url, data, header={})
         if not results:
             return mac_results
         host_infos = results.get("host_management", {}).get("host_info", [])
@@ -765,3 +745,21 @@ class R470GPDeviceScanner(TplinkDeviceScanner):
                 hostname = host_info.get("hostname", "")
                 mac_results[mac] = hostname
         return mac_results
+
+    async def _request(self, url:str, data:dict, header:dict[str,str]) -> dict:
+        send_header = {
+            "Host": self.host,
+            "Content-Type": "application/json",
+        }
+        if header:
+            send_header.update(header)
+
+        try:
+            ret = await self.session.post(url, json=data, headers=header)
+            if not ret.ok:
+                _LOGGER.error("get macs faield %s", ret.text)
+                return {}
+        except ClientConnectorError as err:
+            _LOGGER.error(err)
+            return {}
+        return await ret.json()
