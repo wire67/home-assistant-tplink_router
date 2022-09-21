@@ -4,7 +4,7 @@ The `tplink_router` platform for `device_tracker` integration allows you to dete
 
 It was part of the official `tplink` integration in the past but was [removed](https://github.com/home-assistant/core/pull/27936) from Home Assistant.
 
-## Updates
+## Fork Updates
 
 This fork has been updated to work with Home Assistant version 2022.7+
 
