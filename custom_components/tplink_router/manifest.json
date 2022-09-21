@@ -1,7 +1,7 @@
 {
     "domain": "tplink_router",
     "name": "TPLink Router device tracker",
-    "documentation": "https://github.com/Gh61/home-assistant-tplink_router",
+    "documentation": "https://github.com/Gh61/ha-device_tracker-tplink_router",
     "requirements": [],
     "dependencies": [],
     "codeowners": ["@Gh61"],
