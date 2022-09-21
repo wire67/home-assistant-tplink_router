@@ -17,31 +17,16 @@ from Crypto import Random
 import json
 from codecs import encode
 
-from aiohttp.hdrs import (
-    ACCEPT,
-    'Cookie',
-    PRAGMA,
-    'Referer',
-    CONNECTION,
-    KEEP_ALIVE,
-    USER_AGENT,
-    CONTENT_TYPE,
-    CACHE_CONTROL,
-    ACCEPT_ENCODING,
-    ACCEPT_LANGUAGE
-)
 import requests
 import voluptuous as vol
 
 from homeassistant.components.device_tracker import (
     DOMAIN, PLATFORM_SCHEMA, DeviceScanner)
 from homeassistant.const import (
-    CONF_HOST, CONF_PASSWORD, CONF_USERNAME, HTTP_HEADER_X_REQUESTED_WITH)
+    CONF_HOST, CONF_PASSWORD, CONF_USERNAME)
 import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
-
-HTTP_HEADER_NO_CACHE = 'no-cache'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
@@ -436,18 +421,16 @@ class EAP225TplinkDeviceScanner(TplinkDeviceScanner):
         base_url = 'http://{}'.format(self.host)
 
         header = {
-            USER_AGENT:
+            'User-Agent':
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12;"
                 " rv:53.0) Gecko/20100101 Firefox/53.0",
-            ACCEPT: "application/json, text/javascript, */*; q=0.01",
-            ACCEPT_LANGUAGE: "Accept-Language: en-US,en;q=0.5",
-            ACCEPT_ENCODING: "gzip, deflate",
-            CONTENT_TYPE: "application/x-www-form-urlencoded; charset=UTF-8",
-            HTTP_HEADER_X_REQUESTED_WITH: "XMLHttpRequest",
+            'Accept': "application/json, text/javascript, */*; q=0.01",
+            'Accept-Language': "en-US,en;q=0.5",
+            'Accept-Encoding': "gzip, deflate",
+            'Content-Type': "application/x-www-form-urlencoded; charset=UTF-8",
+            'X-Requested-With': "XMLHttpRequest",
             'Referer': "http://{}/".format(self.host),
-            CONNECTION: KEEP_ALIVE,
-            PRAGMA: HTTP_HEADER_NO_CACHE,
-            CACHE_CONTROL: HTTP_HEADER_NO_CACHE,
+            'Cache-Control': 'no-cache',
         }
 
         password_md5 = hashlib.md5(
