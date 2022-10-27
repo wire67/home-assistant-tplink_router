@@ -4,7 +4,11 @@
     "documentation": "https://github.com/Gh61/ha-device_tracker-tplink_router",
     "requirements": [],
     "dependencies": [],
-    "codeowners": ["@Gh61"],
+    "codeowners": [
+	"@ericpignet",
+	"@Gh61",
+	"@wire67"
+    ],
     "iot_class": "local_polling",
     "version": "0.1.0"
 }
