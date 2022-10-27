@@ -1,13 +1,15 @@
 # TPLink Router device tracker for Home Assistant
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://hacs.xyz/)
+[![Validate with hassfest](https://github.com/Gh61/ha-device_tracker-tplink_router/actions/workflows/hassfest.yaml/badge.svg)](https://github.com/Gh61/ha-device_tracker-tplink_router/actions/workflows/hassfest.yaml)
 
 The `tplink_router` platform for `device_tracker` integration allows you to detect presence by looking at connection devices to a [TP-Link](https://www.tp-link.com) wireless router.
 
 It was part of the official `tplink` integration in the past but was [removed](https://github.com/home-assistant/core/pull/27936) from Home Assistant.
 
-## Installation
-Recommended: use [HACS](https://hacs.xyz/).
+## Fork Updates
 
+This fork has been updated to work with Home Assistant version 2022.7+
+
+## Installation
 Manual: copy `custom_components/tplink_router` folder into your `custom_components`.
 
 <div class='note'>
@@ -42,7 +44,7 @@ For Archer C9 models running firmware version 150811 or later please use the enc
 5. Type `document.getElementById("login-password").value;` or `document.getElementById("pcPassword").value;`, depending on your firmware version.
 6. Copy the returned value to your Home Assistant configuration as password.
 
-See the [device tracker integration page](/integrations/device_tracker/) for instructions how to configure the people to be tracked.
+See the [device tracker integration page](https://www.home-assistant.io/integrations/device_tracker/) for instructions how to configure the people to be tracked.
 
 For Archer D9 model the default IP is 192.168.1.1.
 
@@ -57,7 +59,7 @@ For Archer D9 model the default IP is 192.168.1.1.
 
 ## Supported devices
 
-Devices originally supported include the following:
+Devices originaly supported include the following:
 
 - Archer C7 firmware version 150427
 - Archer C9 firmware version 150811
@@ -66,6 +68,7 @@ Devices originally supported include the following:
 
 Additional devices added since the removal from Home Assistant:
 
+- Archer C6 firmware version 1.3.6 Build 20200902 rel.65591(4555)
 - TPLink N600 with latest firmware
 - TPLink VR600 with latest firmware
 - TL-WR840N

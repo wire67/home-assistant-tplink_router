@@ -1,5 +1,0 @@
-{
-    "name": "TPLink Router",
-    "domains": ["device_tracker"],
-    "homeassistant": "0.108.0"
-}
