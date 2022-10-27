@@ -665,8 +665,6 @@ class VR600TplinkDeviceScanner(TplinkDeviceScanner):
             self.token = ''
             return False
         return True
-<<<<<<< .mine
-
 
 class XDRSeriesTplinkDeviceScanner(TplinkDeviceScanner):
     """This class requires a XDR series with routers with 1.0.10 firmware or above"""
